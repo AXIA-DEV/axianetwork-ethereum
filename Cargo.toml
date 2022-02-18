@@ -15,7 +15,7 @@ ethereum-types = { version = "0.12.1", default-features = false, features = [
 rlp = {  version = "0.5", default-features = false }
 codec = { package = "parity-scale-codec", optional = true, default-features = false, features = [
 	"derive",
-] }
+], version = "2.3.1" }
 serde = { version = "1.0", optional = true, default-features = false, features = [
 	"derive",
 ] }
