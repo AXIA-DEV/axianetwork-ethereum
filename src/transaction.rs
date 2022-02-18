@@ -1,4 +1,3 @@
-use crate::util::enveloped;
 use crate::Bytes;
 use alloc::vec::Vec;
 use core::ops::Deref;
@@ -173,17 +172,17 @@ impl codec::Decode for TransactionSignature {
 	feature = "with-codec",
 	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccessListItem {
 	pub address: Address,
-	pub storage_keys: Vec<H256>,
+	pub slots: Vec<H256>,
 }
 
 impl Encodable for AccessListItem {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 		s.append(&self.address);
-		s.append_list(&self.storage_keys);
+		s.append_list(&self.slots);
 	}
 }
 
@@ -191,7 +190,7 @@ impl Decodable for AccessListItem {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		Ok(Self {
 			address: rlp.val_at(0)?,
-			storage_keys: rlp.list_at(1)?,
+			slots: rlp.list_at(1)?,
 		})
 	}
 }
@@ -301,11 +300,7 @@ impl Encodable for EIP2930TransactionMessage {
 
 impl EIP2930TransactionMessage {
 	pub fn hash(&self) -> H256 {
-		let encoded = rlp::encode(self);
-		let mut out = alloc::vec![0; 1 + encoded.len()];
-		out[0] = 1;
-		out[1..].copy_from_slice(&encoded);
-		H256::from_slice(Keccak256::digest(&out).as_slice())
+		H256::from_slice(Keccak256::digest(&rlp::encode(self)).as_slice())
 	}
 }
 
@@ -340,7 +335,7 @@ impl From<EIP1559Transaction> for EIP1559TransactionMessage {
 
 impl Encodable for EIP1559TransactionMessage {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(9);
+		s.begin_list(8);
 		s.append(&self.chain_id);
 		s.append(&self.nonce);
 		s.append(&self.max_priority_fee_per_gas);
@@ -355,11 +350,7 @@ impl Encodable for EIP1559TransactionMessage {
 
 impl EIP1559TransactionMessage {
 	pub fn hash(&self) -> H256 {
-		let encoded = rlp::encode(self);
-		let mut out = alloc::vec![0; 1 + encoded.len()];
-		out[0] = 2;
-		out[1..].copy_from_slice(&encoded);
-		H256::from_slice(Keccak256::digest(&out).as_slice())
+		H256::from_slice(Keccak256::digest(&rlp::encode(self)).as_slice())
 	}
 }
 
@@ -377,12 +368,6 @@ pub struct LegacyTransaction {
 	pub value: U256,
 	pub input: Bytes,
 	pub signature: TransactionSignature,
-}
-
-impl LegacyTransaction {
-	pub fn hash(&self) -> H256 {
-		H256::from_slice(Keccak256::digest(&rlp::encode(self)).as_slice())
-	}
 }
 
 impl Encodable for LegacyTransaction {
@@ -447,19 +432,9 @@ pub struct EIP2930Transaction {
 	pub value: U256,
 	pub input: Bytes,
 	pub access_list: AccessList,
-	pub odd_y_parity: bool,
+	pub odd_y_axia: bool,
 	pub r: H256,
 	pub s: H256,
-}
-
-impl EIP2930Transaction {
-	pub fn hash(&self) -> H256 {
-		let encoded = rlp::encode(self);
-		let mut out = alloc::vec![0; 1 + encoded.len()];
-		out[0] = 1;
-		out[1..].copy_from_slice(&encoded);
-		H256::from_slice(Keccak256::digest(&out).as_slice())
-	}
 }
 
 impl Encodable for EIP2930Transaction {
@@ -473,7 +448,7 @@ impl Encodable for EIP2930Transaction {
 		s.append(&self.value);
 		s.append(&self.input);
 		s.append_list(&self.access_list);
-		s.append(&self.odd_y_parity);
+		s.append(&self.odd_y_axia);
 		s.append(&U256::from_big_endian(&self.r[..]));
 		s.append(&U256::from_big_endian(&self.s[..]));
 	}
@@ -494,7 +469,7 @@ impl Decodable for EIP2930Transaction {
 			value: rlp.val_at(5)?,
 			input: rlp.val_at(6)?,
 			access_list: rlp.list_at(7)?,
-			odd_y_parity: rlp.val_at(8)?,
+			odd_y_axia: rlp.val_at(8)?,
 			r: {
 				let mut rarr = [0_u8; 32];
 				rlp.val_at::<U256>(9)?.to_big_endian(&mut rarr);
@@ -525,19 +500,9 @@ pub struct EIP1559Transaction {
 	pub value: U256,
 	pub input: Bytes,
 	pub access_list: AccessList,
-	pub odd_y_parity: bool,
+	pub odd_y_axia: bool,
 	pub r: H256,
 	pub s: H256,
-}
-
-impl EIP1559Transaction {
-	pub fn hash(&self) -> H256 {
-		let encoded = rlp::encode(self);
-		let mut out = alloc::vec![0; 1 + encoded.len()];
-		out[0] = 2;
-		out[1..].copy_from_slice(&encoded);
-		H256::from_slice(Keccak256::digest(&out).as_slice())
-	}
 }
 
 impl Encodable for EIP1559Transaction {
@@ -552,7 +517,7 @@ impl Encodable for EIP1559Transaction {
 		s.append(&self.value);
 		s.append(&self.input);
 		s.append_list(&self.access_list);
-		s.append(&self.odd_y_parity);
+		s.append(&self.odd_y_axia);
 		s.append(&U256::from_big_endian(&self.r[..]));
 		s.append(&U256::from_big_endian(&self.s[..]));
 	}
@@ -574,7 +539,7 @@ impl Decodable for EIP1559Transaction {
 			value: rlp.val_at(6)?,
 			input: rlp.val_at(7)?,
 			access_list: rlp.list_at(8)?,
-			odd_y_parity: rlp.val_at(9)?,
+			odd_y_axia: rlp.val_at(9)?,
 			r: {
 				let mut rarr = [0_u8; 32];
 				rlp.val_at::<U256>(10)?.to_big_endian(&mut rarr);
@@ -592,25 +557,13 @@ impl Decodable for EIP1559Transaction {
 pub type TransactionV0 = LegacyTransaction;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(
-	feature = "with-codec",
-	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
-)]
+#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TransactionV1 {
 	/// Legacy transaction type
 	Legacy(LegacyTransaction),
 	/// EIP-2930 transaction
 	EIP2930(EIP2930Transaction),
-}
-
-impl TransactionV1 {
-	pub fn hash(&self) -> H256 {
-		match self {
-			TransactionV1::Legacy(t) => t.hash(),
-			TransactionV1::EIP2930(t) => t.hash(),
-		}
-	}
 }
 
 impl Encodable for TransactionV1 {
@@ -657,16 +610,6 @@ pub enum TransactionV2 {
 	EIP1559(EIP1559Transaction),
 }
 
-impl TransactionV2 {
-	pub fn hash(&self) -> H256 {
-		match self {
-			TransactionV2::Legacy(t) => t.hash(),
-			TransactionV2::EIP2930(t) => t.hash(),
-			TransactionV2::EIP1559(t) => t.hash(),
-		}
-	}
-}
-
 impl Encodable for TransactionV2 {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		match self {
@@ -701,28 +644,13 @@ impl Decodable for TransactionV2 {
 	}
 }
 
-impl From<LegacyTransaction> for TransactionV1 {
-	fn from(t: LegacyTransaction) -> Self {
-		TransactionV1::Legacy(t)
-	}
+fn enveloped<T: Encodable>(id: u8, v: &T, s: &mut RlpStream) {
+	let encoded = rlp::encode(v);
+	let mut out = alloc::vec![0; 1 + encoded.len()];
+	out[0] = id;
+	out[1..].copy_from_slice(&encoded);
+	out.rlp_append(s)
 }
-
-impl From<LegacyTransaction> for TransactionV2 {
-	fn from(t: LegacyTransaction) -> Self {
-		TransactionV2::Legacy(t)
-	}
-}
-
-impl From<TransactionV1> for TransactionV2 {
-	fn from(t: TransactionV1) -> Self {
-		match t {
-			TransactionV1::Legacy(t) => TransactionV2::Legacy(t),
-			TransactionV1::EIP2930(t) => TransactionV2::EIP2930(t),
-		}
-	}
-}
-
-pub type TransactionAny = TransactionV2;
 
 #[cfg(test)]
 mod tests {
@@ -770,7 +698,7 @@ mod tests {
 			access_list: vec![
 				AccessListItem {
 					address: hex!("de0b295669a9fd93d5f28d9ec85e40f4cb697bae").into(),
-					storage_keys: vec![
+					slots: vec![
 						hex!("0000000000000000000000000000000000000000000000000000000000000003")
 							.into(),
 						hex!("0000000000000000000000000000000000000000000000000000000000000007")
@@ -779,10 +707,10 @@ mod tests {
 				},
 				AccessListItem {
 					address: hex!("bb9bc244d798123fde783fcc1c72d3bb8c189413").into(),
-					storage_keys: vec![],
+					slots: vec![],
 				},
 			],
-			odd_y_parity: false,
+			odd_y_axia: false,
 			r: hex!("36b241b061a36a32ab7fe86c7aa9eb592dd59018cd0443adc0903590c16b02b0").into(),
 			s: hex!("5edcc541b4741c5cc6dd347c5ed9577ef293a62787b4510465fadbfe39ee4094").into(),
 		});
@@ -806,7 +734,7 @@ mod tests {
 			access_list: vec![
 				AccessListItem {
 					address: hex!("de0b295669a9fd93d5f28d9ec85e40f4cb697bae").into(),
-					storage_keys: vec![
+					slots: vec![
 						hex!("0000000000000000000000000000000000000000000000000000000000000003")
 							.into(),
 						hex!("0000000000000000000000000000000000000000000000000000000000000007")
@@ -815,10 +743,10 @@ mod tests {
 				},
 				AccessListItem {
 					address: hex!("bb9bc244d798123fde783fcc1c72d3bb8c189413").into(),
-					storage_keys: vec![],
+					slots: vec![],
 				},
 			],
-			odd_y_parity: false,
+			odd_y_axia: false,
 			r: hex!("36b241b061a36a32ab7fe86c7aa9eb592dd59018cd0443adc0903590c16b02b0").into(),
 			s: hex!("5edcc541b4741c5cc6dd347c5ed9577ef293a62787b4510465fadbfe39ee4094").into(),
 		});

@@ -17,5 +17,5 @@ pub use account::Account;
 pub use block::*;
 pub use header::{Header, PartialHeader};
 pub use log::Log;
-pub use receipt::*;
+pub use receipt::Receipt;
 pub use transaction::*;
